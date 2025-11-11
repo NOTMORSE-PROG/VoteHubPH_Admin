@@ -47,6 +47,7 @@ export default function AdminDashboard() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastFetchRef = useRef<number>(0)
   const isInitialMount = useRef(true)
+  const searchTimeoutsRef = useRef<Record<number, NodeJS.Timeout>>({})
 
   // Check authentication on mount
   useEffect(() => {
@@ -819,13 +820,29 @@ export default function AdminDashboard() {
                         type="text"
                         placeholder="Search by name or acronym..."
                         value={searchPartyList[post.id] || ""}
-                        onChange={async (e) => {
+                        onChange={(e) => {
                           const query = e.target.value
                           setSearchPartyList(prev => ({ ...prev, [post.id]: query }))
                           setSelectedPartyListId(prev => ({ ...prev, [post.id]: null }))
                           
-                          if (query.length >= 2) {
-                            setIsSearchingPartyList(prev => ({ ...prev, [post.id]: true }))
+                          // Clear any existing timeout for this post
+                          if (searchTimeoutsRef.current[post.id]) {
+                            clearTimeout(searchTimeoutsRef.current[post.id])
+                            delete searchTimeoutsRef.current[post.id]
+                          }
+                          
+                          // Clear results if query is too short
+                          if (query.length < 1) {
+                            setExistingPartyLists(prev => ({ ...prev, [post.id]: [] }))
+                            setIsSearchingPartyList(prev => ({ ...prev, [post.id]: false }))
+                            return
+                          }
+                          
+                          // Debounce the search - wait 300ms after user stops typing
+                          setIsSearchingPartyList(prev => ({ ...prev, [post.id]: true }))
+                          
+                          // Set new timeout
+                          const timeoutId = setTimeout(async () => {
                             try {
                               const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
                               const response = await fetch(
@@ -845,10 +862,12 @@ export default function AdminDashboard() {
                               console.error("Failed to search party lists:", error)
                             } finally {
                               setIsSearchingPartyList(prev => ({ ...prev, [post.id]: false }))
+                              delete searchTimeoutsRef.current[post.id]
                             }
-                          } else {
-                            setExistingPartyLists(prev => ({ ...prev, [post.id]: [] }))
-                          }
+                          }, 300)
+                          
+                          // Store timeout ID
+                          searchTimeoutsRef.current[post.id] = timeoutId
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
