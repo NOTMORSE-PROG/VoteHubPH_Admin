@@ -317,22 +317,26 @@ export default function AdminDashboard() {
     }
   }
 
-  // Redirect to login if not authenticated
-  if (isAuthenticated === false) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login'
-    }
+  // Show loading only while checking authentication or fetching initial data
+  if (isAuthenticated === null || (isAuthenticated === true && isLoading && posts.length === 0)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
       </div>
     )
   }
 
-  if (isLoading || isAuthenticated === null) {
+  // Redirect to login if not authenticated (handled in useEffect, but show loading briefly)
+  if (isAuthenticated === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
       </div>
     )
   }
