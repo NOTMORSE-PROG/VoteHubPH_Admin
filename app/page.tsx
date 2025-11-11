@@ -827,9 +827,15 @@ export default function AdminDashboard() {
                           if (query.length >= 2) {
                             setIsSearchingPartyList(prev => ({ ...prev, [post.id]: true }))
                             try {
+                              const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
                               const response = await fetch(
                                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/admin/partylists/search?q=${encodeURIComponent(query)}`,
-                                { credentials: "include" }
+                                {
+                                  credentials: "include",
+                                  headers: {
+                                    ...(adminUserId ? { 'X-User-Id': adminUserId } : {}),
+                                  },
+                                }
                               )
                               if (response.ok) {
                                 const data = await response.json()
