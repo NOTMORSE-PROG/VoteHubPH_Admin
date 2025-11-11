@@ -35,8 +35,8 @@ export default function AdminLoginPage() {
           localStorage.setItem('admin_authenticated', 'true')
           localStorage.setItem('admin_user_id', data.user.id)
         }
-        // Redirect to admin dashboard
-        router.push("/")
+        // Use hard redirect to ensure page fully reloads and authentication is checked
+        window.location.href = "/"
       } else {
         setError(data.message || "Login failed")
       }

@@ -55,11 +55,29 @@ export default function AdminDashboard() {
       setIsAuthenticated(authenticated)
       if (!authenticated) {
         setIsLoading(false)
+        // Redirect to login if not authenticated
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 100)
       }
+    } else {
+      // Server-side: set to false to prevent loading state
+      setIsAuthenticated(false)
+      setIsLoading(false)
     }
   }, [])
 
   const fetchPosts = useCallback(async (silent = false) => {
+    // Double-check authentication before fetching
+    if (typeof window !== 'undefined') {
+      const authenticated = localStorage.getItem('admin_authenticated') === 'true'
+      if (!authenticated) {
+        setIsAuthenticated(false)
+        window.location.href = '/login'
+        return
+      }
+    }
+    
     if (!isAuthenticated) {
       return
     }
@@ -74,12 +92,19 @@ export default function AdminDashboard() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
       const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
       
+      if (!adminUserId) {
+        console.error("Admin user ID not found")
+        setIsLoading(false)
+        setIsRefreshing(false)
+        return
+      }
+      
       const response = await fetch(`${apiUrl}/admin/posts`, {
         credentials: "include",
         cache: 'no-store', // Prevent caching
-        headers: adminUserId ? {
+        headers: {
           'X-User-Id': adminUserId,
-        } : {},
+        },
       })
       if (response.ok) {
         const data = await response.json()
@@ -108,7 +133,7 @@ export default function AdminDashboard() {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [])
+  }, [isAuthenticated])
 
   // Initial fetch
   useEffect(() => {
