@@ -29,6 +29,7 @@ interface Post {
 }
 
 export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -47,7 +48,22 @@ export default function AdminDashboard() {
   const lastFetchRef = useRef<number>(0)
   const isInitialMount = useRef(true)
 
+  // Check authentication on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const authenticated = localStorage.getItem('admin_authenticated') === 'true'
+      setIsAuthenticated(authenticated)
+      if (!authenticated) {
+        setIsLoading(false)
+      }
+    }
+  }, [])
+
   const fetchPosts = useCallback(async (silent = false) => {
+    if (!isAuthenticated) {
+      return
+    }
+    
     if (!silent) {
       setIsLoading(true)
     } else {
@@ -56,9 +72,14 @@ export default function AdminDashboard() {
     
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+      const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
+      
       const response = await fetch(`${apiUrl}/admin/posts`, {
         credentials: "include",
         cache: 'no-store', // Prevent caching
+        headers: adminUserId ? {
+          'X-User-Id': adminUserId,
+        } : {},
       })
       if (response.ok) {
         const data = await response.json()
@@ -91,9 +112,11 @@ export default function AdminDashboard() {
 
   // Initial fetch
   useEffect(() => {
-    fetchPosts()
-    isInitialMount.current = false
-  }, [fetchPosts])
+    if (isAuthenticated === true) {
+      fetchPosts()
+      isInitialMount.current = false
+    }
+  }, [isAuthenticated, fetchPosts])
 
   // Auto-refresh every 30 seconds when tab is visible
   useEffect(() => {
@@ -183,11 +206,14 @@ export default function AdminDashboard() {
     
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+      const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
+      
       const response = await fetch(`${apiUrl}/admin/posts/${postId}/approve`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
+          ...(adminUserId ? { 'X-User-Id': adminUserId } : {}),
         },
         credentials: "include",
       })
@@ -236,11 +262,14 @@ export default function AdminDashboard() {
     
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+      const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
+      
       const response = await fetch(`${apiUrl}/admin/posts/${postId}/reject`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "Accept": "application/json",
+          ...(adminUserId ? { 'X-User-Id': adminUserId } : {}),
         },
         body: JSON.stringify({ admin_notes: adminNotes }),
         credentials: "include",
@@ -263,7 +292,19 @@ export default function AdminDashboard() {
     }
   }
 
-  if (isLoading) {
+  // Redirect to login if not authenticated
+  if (isAuthenticated === false) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  if (isLoading || isAuthenticated === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -834,11 +875,17 @@ export default function AdminDashboard() {
                           
                           setIsProcessingPartyList(prev => ({ ...prev, [post.id]: true }))
                           try {
+                            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+                            const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
+                            
                             const response = await fetch(
-                              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/admin/partylists/${partyListId}/members`,
+                              `${apiUrl}/admin/partylists/${partyListId}/members`,
                               {
                                 method: "POST",
-                                headers: { "Content-Type": "application/json" },
+                                headers: { 
+                                  "Content-Type": "application/json",
+                                  ...(adminUserId ? { 'X-User-Id': adminUserId } : {}),
+                                },
                                 credentials: "include",
                                 body: JSON.stringify({ post_id: post.id }),
                               }
@@ -881,11 +928,17 @@ export default function AdminDashboard() {
                         onClick={async () => {
                           setIsProcessingPartyList(prev => ({ ...prev, [post.id]: true }))
                           try {
+                            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+                            const adminUserId = typeof window !== 'undefined' ? localStorage.getItem('admin_user_id') : null
+                            
                             const response = await fetch(
-                              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/admin/partylists`,
+                              `${apiUrl}/admin/partylists`,
                               {
                                 method: "POST",
-                                headers: { "Content-Type": "application/json" },
+                                headers: { 
+                                  "Content-Type": "application/json",
+                                  ...(adminUserId ? { 'X-User-Id': adminUserId } : {}),
+                                },
                                 credentials: "include",
                                 body: JSON.stringify({
                                   name: post.party,
